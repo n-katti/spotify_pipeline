@@ -41,7 +41,7 @@ def get_playlist_api(token: str, playlist_id = "2WLEaVPEEX377VUMhpHlDq"):
     response = requests.get(f'https://api.spotify.com/v1/playlists/{playlist_id}?limit=1000', headers=headers)
     response = json.loads(response.text)
     return response
-
+# https://api.spotify.com/v1/playlists/2WLEaVPEEX377VUMhpHlDq?offset=100&limit=100
     # # tracks = []
     # # url = (f'https://api.spotify.com/v1/playlists/{playlist_id}')
     # # while True:
@@ -61,13 +61,33 @@ def get_playlist_api(token: str, playlist_id = "2WLEaVPEEX377VUMhpHlDq"):
     # return tracks
     
 
-def get_playlist_data(token: str, playlist_id: list = ["37i9dQZEVXbLRQDuF5jeBp", "2WLEaVPEEX377VUMhpHlDq", "2UDq4hyOlRVhWomJfw3z93"]):
+def get_playlist_data(token: str, playlist_id: list = ["2WLEaVPEEX377VUMhpHlDq", "2UDq4hyOlRVhWomJfw3z93"]):
     sp = spotipy.Spotify(auth=token)
 
     results = []
     for x in playlist_id:
         result = sp.playlist(x)
         results.append(result)
+    return results
+
+def get_playlist_tracks(token: str, playlist_id: list = ["2WLEaVPEEX377VUMhpHlDq", "2UDq4hyOlRVhWomJfw3z93"]):
+    sp = spotipy.Spotify(auth=token)
+
+    results = []
+    for x in playlist_id:
+        result = sp.playlist_items(x, offset=0, limit=100)
+        tracks = result['items']
+
+        # new_url = str.replace(new_url, '/tracks', '')
+        # new_url = str.replace(new_url, '&additional_types=track', '')
+        # print(new_url)
+        while result['next']:
+
+            result = sp.next(result)
+            tracks.extend(result['items'])
+            # tracks.extend(result)
+            # return tracks
+        results.append(tracks)
     return results
 
 
@@ -222,46 +242,26 @@ def get_artists_normalized(results) -> pd.DataFrame:
 token = get_token(spotify_client_id, spotify_client_secret, spotify_username, spotify_redirect_url)
 
 # Gets all playlist info for a playlist
-playlist_data = get_playlist_data(token=token)
+# playlist_data = get_playlist_data(token=token)
 # print(type(playlist_data))
 
 # # Gets all artist info for a playlist
 # # artist_data = get_playlist_artists(playlist_data)
 # # print(artist_data)
 
-# # # Gets all song info for a playlist
-song_data = get_playlist_songs(playlist_data)
-print(song_data)
+# Gets all song info for a playlist
+# song_data = get_playlist_songs(playlist_data)
+# print(song_data)
 
+# Gets all playlist info
 # playlist_norm = get_playlist_normalized(playlist_data)
 # print(playlist_norm)
 
-# x = get_playlist_api(token=token)
-# # print(type(x))
-# song_data = get_playlist_songs(list(x))
-# # print(type(x))
-# print(x)
+df = get_playlist_tracks(token=token)
 
-# print(len(x['tracks']['items']))
-# for key in x['tracks']:
+print(len(df[1]))
+
+print(len(df))
+
+# for key in df[0]:
 #     print(key)
-'''
-collaborative
-description
-external_urls
-followers
-href
-id
-images
-name
-owner
-primary_color
-public
-snapshot_id
-tracks
-type
-uri'''
-
-# print(get_playlist_songs(playlist_data).columns)
-
-
