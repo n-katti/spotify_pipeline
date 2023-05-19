@@ -9,43 +9,49 @@ from dotenv import load_dotenv
 import spotipy
 import copy
 
-# Tables needed: songs, artists, song features, playlists details (popular vs. Nikhil's)
-
-sys.path.append(os.path.realpath(__file__).split("spotify_pipeline")[0]+"spotify_pipeline")
-
-#Load in env variables
-load_dotenv()
-spotify_client_id = os.environ.get("spotify_client_id")
-spotify_client_secret = os.environ.get("spotify_client_secret")
-spotify_username = os.environ.get("spotify_username")
-spotify_redirect_url = os.environ.get("spotify_redirect_url")
 
 
 def get_token(id: str, secret: str, user: str, redirect: str, scope: str = "user-read-recently-played playlist-read-private user-top-read playlist-read-collaborative"):
-    '''Generates a token based on the env variables that are loaded in and the provided scope'''
+    '''
+    Generates a token based on the env variables that are loaded in and the provided scope
+    '''
+
     token = util.prompt_for_user_token(user, scope, id, secret, redirect)
 
     return token
 
-
-def get_playlist_api(token: str, playlist_id = "2WLEaVPEEX377VUMhpHlDq"):
-    '''Returns song information for a given playlist ID. By default, the playlist ID is Spotify's Top 50 - USA playlists
-       This playlist is located here: https://open.spotify.com/playlist/37i9dQZEVXbLRQDuF5jeBp?si=76602149e9d4473c  
+def initalize_spotipy(token):
     '''
-    headers = {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': f'Bearer {token}',
-    }
+    Initializes spotipy object. This object needs to be passed to any functions that utilize the Spotify API
+    '''
 
     sp = spotipy.Spotify(auth=token)
-    response = requests.get(f'https://api.spotify.com/v1/playlists/{playlist_id}?limit=1000', headers=headers)
-    response = json.loads(response.text)
-    return response
+
+    return sp
 
 
-def get_playlist_tracks(token: str, playlist_id: list = ["37i9dQZEVXbLRQDuF5jeBp", "2WLEaVPEEX377VUMhpHlDq", "2UDq4hyOlRVhWomJfw3z93"]) -> list:
-    sp = spotipy.Spotify(auth=token)
+# def get_playlist_api(sp, token: str, playlist_id = "2WLEaVPEEX377VUMhpHlDq"):
+#     '''Returns song information for a given playlist ID. By default, the playlist ID is Spotify's Top 50 - USA playlists
+#        This playlist is located here: https://open.spotify.com/playlist/37i9dQZEVXbLRQDuF5jeBp?si=76602149e9d4473c  
+#     '''
+#     headers = {
+#         'Accept': 'application/json',
+#         'Content-Type': 'application/json',
+#         'Authorization': f'Bearer {token}',
+#     }
+
+#     response = requests.get(f'https://api.spotify.com/v1/playlists/{playlist_id}?limit=1000', headers=headers)
+#     response = json.loads(response.text)
+#     return response
+
+
+def get_playlist_tracks(sp, token: str, playlist_id: list = ["37i9dQZEVXbLRQDuF5jeBp", "2WLEaVPEEX377VUMhpHlDq", "2UDq4hyOlRVhWomJfw3z93"]) -> list:
+    '''
+    Gets all data from playlists passed as a parameter. By default, it will pull from three playlists
+    1. Top 50 - USA owned by Spotify: https://open.spotify.com/playlist/37i9dQZEVXbL
+    2. Blake by Nikhil owned by nkatti: https://open.spotify.com/playlist/2WLEaVPEEX37
+    3. Rap owned by nkatti: https://open.spotify.com/playlist/2UDq4hyOlRVh
+    '''
 
     results = []
     for x in playlist_id:
@@ -67,9 +73,11 @@ def get_playlist_tracks(token: str, playlist_id: list = ["37i9dQZEVXbLRQDuF5jeBp
 
 
 def get_playlist_artists(results) -> pd.DataFrame:
-    '''Returns artist information for a given playlist ID. By default, the playlist ID is Spotify's Top 50 - USA playlists
-       This playlist is located here: https://open.spotify.com/playlist/37i9dQZEVXbLRQDuF5jeBp?si=76602149e9d4473c  
     '''
+    Returns artist information for a given playlist ID. By default, the playlist ID is Spotify's Top 50 - USA playlists
+    This playlist is located here: https://open.spotify.com/playlist/37i9dQZEVXbLRQDuF5jeBp?si=76602149e9d4473c  
+    '''
+
     all_data = []
 
     for individual_result in results:
@@ -93,8 +101,9 @@ def get_playlist_artists(results) -> pd.DataFrame:
 
 
 def get_playlist_song_artist(results) -> pd.DataFrame:
-    '''Returns song information for a given playlist ID. By default, the playlist ID is Spotify's Top 50 - USA playlists
-       This playlist is located here: https://open.spotify.com/playlist/37i9dQZEVXbLRQDuF5jeBp?si=76602149e9d4473c  
+    '''
+    Returns song information for a given playlist ID. By default, the playlist ID is Spotify's Top 50 - USA playlists
+    This playlist is located here: https://open.spotify.com/playlist/37i9dQZEVXbLRQDuF5jeBp?si=76602149e9d4473c  
     '''
 
     all_data = []
@@ -109,7 +118,10 @@ def get_playlist_song_artist(results) -> pd.DataFrame:
                 songs['artist_id'] = y['id']
                 # Set song-related information
                 songs['song_id'] = song_details[x]['track']['id']
-                songs['playlist_id'] = song_details[x]['playlist_id']
+                try:
+                    songs['playlist_id'] = song_details[x]['playlist_id']
+                except:
+                    songs['playlist_id'] = 'Recent'
                 all_data.append(copy.deepcopy(songs))
     
     # Return dataframe of the all_data list
@@ -119,9 +131,10 @@ def get_playlist_song_artist(results) -> pd.DataFrame:
     return df
 
     
-def get_playlist_normalized(token: str, playlist_id: list = ["37i9dQZEVXbLRQDuF5jeBp", "2WLEaVPEEX377VUMhpHlDq", "2UDq4hyOlRVhWomJfw3z93"]):
-    '''Takes in original playlist data and outputs a unique list of playlists that will be used for playlist dimension table'''
-    sp = spotipy.Spotify(auth=token)
+def get_playlist_normalized(sp, token: str, playlist_id: list = ["37i9dQZEVXbLRQDuF5jeBp", "2WLEaVPEEX377VUMhpHlDq", "2UDq4hyOlRVhWomJfw3z93"]):
+    '''
+    Takes in original playlist data and outputs a unique list of playlists that will be used for playlist dimension table
+    '''
 
     results = []
     for x in playlist_id:
@@ -144,7 +157,10 @@ def get_playlist_normalized(token: str, playlist_id: list = ["37i9dQZEVXbLRQDuF5
     return df
 
 def get_songs_normalized(results) -> pd.DataFrame:
-    '''Takes in original playlist data and outputs a unique list of songs that will be used for playlist dimension table'''
+    '''
+    Takes in original playlist data and outputs a unique list of songs that will be used for playlist dimension table
+    '''
+
     all_data = []
 
     for individual_result in results:
@@ -159,7 +175,11 @@ def get_songs_normalized(results) -> pd.DataFrame:
             songs['song_id'] = song_details[x]['track']['id']
             songs['song_name'] = song_details[x]['track']['name']
             songs['song_popularity'] = song_details[x]['track']['popularity']
-            songs['song_release_date'] = song_details[x]['added_at']
+
+            try:
+                songs['song_added_on'] = song_details[x]['added_at']
+            except:
+                songs['song_added_on'] = song_details[x]['played_at']
 
             try:
                 songs['song_url'] = song_details[x]['track']['external_urls']['spotify']   
@@ -181,11 +201,12 @@ def get_songs_normalized(results) -> pd.DataFrame:
     df.reset_index(drop=True, inplace=True)
     return df
 
-# Can have one song show up twice in the same playlist - need to drop duplicates
-# Each song can have multiple artists so it will have to repeat -- need to make an additional loop on the number of items in artist
                 
 def get_artists_normalized(results) -> pd.DataFrame:
-    '''Takes in original playlist data and outputs a unique list of artists that will be used for playlist dimension table'''
+    '''
+    Takes in original playlist data and outputs a unique list of artists that will be used for playlist dimension table
+    '''
+
     all_data = []
 
     for individual_result in results:
@@ -212,27 +233,27 @@ def get_artists_normalized(results) -> pd.DataFrame:
     df.reset_index(drop=True, inplace=True)
     return df
 
-# def union_dfs()
+def get_recently_played(sp):
+    '''
+    Gets all of the base data for nkatti's recently played 50 songs
+    '''
 
-# Sets up token
-token = get_token(spotify_client_id, spotify_client_secret, spotify_username, spotify_redirect_url)
+    results = sp.current_user_recently_played()
+    results = [results['items']]
+    return results 
 
-# Gets base data for songs/artists
-# base = get_playlist_tracks(token=token)
-# print(base)
+def main(): 
 
-# Gets normalized playlist info
-playlist_data = get_playlist_normalized(token=token)
-print(playlist_data)
+    try:
+        load_dotenv()
+        spotify_client_id = os.environ.get("spotify_client_id")
+        spotify_client_secret = os.environ.get("spotify_client_secret")
+        spotify_username = os.environ.get("spotify_username")
+        spotify_redirect_url = os.environ.get("spotify_redirect_url")
+        token = get_token(spotify_client_id, spotify_client_secret, spotify_username, spotify_redirect_url)
+        print(f'Your spotify token is: {token}')
+    except:
+        print('ERROR: Token needs to be reconfigured')
 
-# # Gets normalized songs
-# song_data = get_songs_normalized(base)
-# print(song_data)
-
-# # Gets normalized artists
-# artist_data = get_artists_normalized(base)
-# print(artist_data)
-
-# Gets total fact table
-# fact_table = get_playlist_song_artist(base)
-# print(fact_table)
+if __name__ == "__main__":
+    main()
