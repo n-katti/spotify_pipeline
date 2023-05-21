@@ -1,3 +1,4 @@
 .env
 .cache-nkatti
 git_commands.md
+__pycache__/
