@@ -4,9 +4,8 @@ import pandas as pd
 from dotenv import load_dotenv
 sys.path.append(os.path.realpath(__file__).split("spotify_pipeline")[0]+"spotify_pipeline")
 
-from modules.spotify.spotify_api import *
-
-load_dotenv()
+from modules.spotify.spotify_functions import *
+from lib.helper import *
 
 #Load in env variables
 load_dotenv()
@@ -28,11 +27,11 @@ base = get_playlist_tracks(sp=sp, token=token, playlist_id=playlist_ids)
 
 # Gets base for recently played songs
 recent = get_recently_played(sp)
-print(recent)
+# print(recent)
 
 # Gets normalized playlist info for playlists specified
 playlist_data = get_playlist_normalized(sp=sp, token=token, playlist_id=playlist_ids)
-print(playlist_data)
+# print(playlist_data)
 
 # Gets normalized playlist info for recently played songs
 recent_playlist_data = pd.DataFrame([["Recent", "Nikhil's Recently Played", "nkatti", '']], columns=["playlist_id", 'playlist_name', 'playlist_owner', 'playlist_url'])
@@ -62,7 +61,14 @@ fact_table = get_playlist_song_artist(base)
 fact_recent_songs = get_playlist_song_artist(recent)
 # print(fact_recent_songs)
 
+# Combines all dataframes, drop duplicates, and resets indices
+all_playlists = combine_dfs(playlist_data, recent_playlist_data)
+all_artists = combine_dfs(artist_data, recent_artist_data)
+all_songs = combine_dfs(song_data, recent_song_data)
 
+# Gets song features
+features = get_song_features(song_df=all_songs, sp=sp)
+print(features)
 
 
 

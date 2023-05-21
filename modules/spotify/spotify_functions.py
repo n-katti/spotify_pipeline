@@ -186,13 +186,6 @@ def get_songs_normalized(results) -> pd.DataFrame:
             except:
                 songs['song_url'] = ''
 
-            # Convert song duration from milliseconds to decimal form
-            millis = int(song_details[x]['track']['duration_ms'])
-            seconds = round(float(((millis/1000)%60)/60), 2)
-            minutes = int((millis/(1000*60))%60)
-            songs['song_duration'] = minutes + seconds
-            songs['song_duration_ms'] = song_details[x]['track']['duration_ms']
-
             all_data.append(copy.deepcopy(songs))
     
     # Removes duplicates and returns dataframe of all de-duped songs
@@ -242,6 +235,53 @@ def get_recently_played(sp):
     results = [results['items']]
     return results 
 
+def get_song_features(song_df: pd.DataFrame, sp) -> pd.DataFrame:
+    ''' 
+    Accepts a dataframa of song data. Feeds list of song IDs to Spotipy's audio_features function and returns a dataframe
+    of all song features associated with a song
+    '''
+
+    # Create a list of the song IDs that we feed in to the function as a dataframe
+    songs = list(map(str, song_df['song_id'].drop_duplicates()))
+
+    all_features = []
+    
+    # Create a list of interested features
+    interested_features = ['danceability', 'energy', 'key', 'loudness', 'mode', 'speechiness', 'acousticness', 'instrumentalness',
+                            'liveness', 'valence', 'tempo']
+    
+    # Loop through Spotify song IDs 100 at a time, as this is the limit for requesting features
+    for i in range(0, len(songs), 100):
+
+        # Create a list of the song features
+        raw_features = sp.audio_features(songs[i: i+100])
+        
+        # Loop through each song's features and add the results to a dictionary
+        for raw_song_data in raw_features:
+            try:
+                song_data = {}
+                song_data['song_id'] = raw_song_data['id']
+
+                # Convert song duration from milliseconds to decimal form
+                millis = int(raw_song_data['duration_ms'])
+                seconds = round(float(((millis/1000)%60)/60), 2)
+                minutes = int((millis/(1000*60))%60)
+                song_data['song_duration'] = minutes + seconds
+
+                for feature in interested_features:
+                    song_data[feature] = raw_song_data[feature]
+
+                # Add specific song's features to a list that will be converted to a dataframe
+                all_features.append(copy.deepcopy(song_data))
+
+            except:
+                continue
+
+    df = pd.DataFrame(all_features)
+    df.drop_duplicates(inplace=True)
+    df.reset_index(drop=True, inplace=True)
+    return df
+
 def main(): 
 
     try:
@@ -251,9 +291,13 @@ def main():
         spotify_username = os.environ.get("spotify_username")
         spotify_redirect_url = os.environ.get("spotify_redirect_url")
         token = get_token(spotify_client_id, spotify_client_secret, spotify_username, spotify_redirect_url)
-        print(f'Your spotify token is: {token}')
+        print(f'SUCCESS: Spotify token is: {token}')
     except:
         print('ERROR: Token needs to be reconfigured')
 
 if __name__ == "__main__":
     main()
+
+
+
+
