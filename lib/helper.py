@@ -13,4 +13,5 @@ def combine_dfs(df1, *argv):
         main_df = pd.concat([main_df, dfs], ignore_index=True).drop_duplicates().reset_index(drop=True)
 
     return main_df
-    
+
+print('test')   

@@ -68,7 +68,7 @@ all_songs = combine_dfs(song_data, recent_song_data)
 
 # Gets song features
 features = get_song_features(song_df=all_songs, sp=sp)
-print(features)
+# print(features)
 
 
 
